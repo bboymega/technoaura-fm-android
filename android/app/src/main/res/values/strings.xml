@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">TechoAura</string>
+    <string name="title_activity_main">TechoAura</string>
+    <string name="package_name">live.technoaura.radio</string>
+    <string name="custom_url_scheme">live.technoaura.radio</string>
+</resources>
