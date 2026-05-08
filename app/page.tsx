@@ -12,17 +12,20 @@ import {
 } from "lucide-react";
 
 type StreamQuality = {
+  id: string;
   label: string;
   description: string;
   url: string;
 };
 
 import { MediaSession } from '@capgo/capacitor-media-session';
+import { Preferences } from "@capacitor/preferences";
 
 export default function Page() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const fsQualityRef = useRef<HTMLDivElement | null>(null);
   const sidebarQualityRef = useRef<HTMLDivElement | null>(null);
+  const QUALITY_STORAGE_KEY = "selected-stream-quality";
 
   // 0 = paused
   // 1 = buffering/recovering
@@ -34,24 +37,49 @@ export default function Page() {
 
   const qualities: StreamQuality[] = [
     {
+      id: "24_96",
       label: "UHQ",
       description: "24-bit / 96 kHz",
       url: process.env.NEXT_PUBLIC_STREAM_URL_24_96!,
     },
     {
+      id: "24_48",
       label: " HQ",
       description: "24-bit / 48 kHz",
       url: process.env.NEXT_PUBLIC_STREAM_URL_24_48!,
     },
     {
+      id: "16_44",
       label: "SD",
       description: "16-bit / 44.1 kHz",
       url: process.env.NEXT_PUBLIC_STREAM_URL_16_44!,
     },
   ];
 
-  const [selectedQuality, setSelectedQuality] =
-    useState(qualities[0]);
+  const [selectedQuality, setSelectedQuality] = useState<StreamQuality>(qualities[0]);
+
+  useEffect(() => {
+    const loadSavedQuality = async () => {
+      try {
+        const { value } = await Preferences.get({
+          key: QUALITY_STORAGE_KEY,
+        });
+
+        if (!value) return;
+
+        const savedQuality = qualities.find(
+          (q) => q.id === value,
+        );
+
+        if (savedQuality) {
+          setSelectedQuality(savedQuality);
+        }
+      } catch (err) {
+      }
+    };
+
+    void loadSavedQuality();
+  }, []);
 
   const streamUrl = selectedQuality.url;
 
@@ -351,9 +379,9 @@ export default function Page() {
         album: "Nonstop vibes 24/7",
       });
 
-      await MediaSession.setPlaybackState({
-        playbackState: 'paused',
-      });
+      //await MediaSession.setPlaybackState({
+      //  playbackState: 'paused',
+      //});
 
       await MediaSession.setActionHandler(
         { action: "play" },
@@ -503,6 +531,11 @@ export default function Page() {
     const wasPlaying = playing === 2;
 
     setSelectedQuality(quality);
+
+    await Preferences.set({
+      key: QUALITY_STORAGE_KEY,
+      value: quality.id,
+    });
 
     setQualityMenuOpen(false);
 

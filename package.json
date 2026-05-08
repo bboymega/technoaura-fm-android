@@ -12,6 +12,7 @@
     "@capacitor/android": "^8.3.2",
     "@capacitor/cli": "^7.6.3",
     "@capacitor/core": "^8.3.2",
+    "@capacitor/preferences": "^8.0.1",
     "@capgo/capacitor-media-session": "^8.0.22",
     "dotenv": "^17.4.2",
     "framer-motion": "^12.38.0",
