@@ -1,4 +1,4 @@
-# technoaura-fm
+# technoaura-fm-android
 TechnoAura Live Radio Player Android Application
 
 
