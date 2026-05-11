@@ -389,6 +389,18 @@ export default function Page() {
   }, [fsQualityOpen, qualityMenuOpen, controlsOpen]);
 
   useEffect(() => {
+    if (controlsOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [controlsOpen]);
+
+  useEffect(() => {
     if (!fsQualityOpen) return;
 
     const handlePointerDown = (event: PointerEvent) => {
@@ -695,68 +707,88 @@ export default function Page() {
 
   return (
     <div
-      className="min-h-screen pb-28 text-white"
+      className="
+        h-[100dvh]
+        overflow-hidden
+        overscroll-none
+        touch-pan-y
+        select-none
+        text-white
+      "
       style={{
         backgroundColor:
           process.env.NEXT_PUBLIC_BACKGROUND_COLOR,
+
+        WebkitTapHighlightColor: "transparent",
+        WebkitTouchCallout: "none",
       }}
     >
       <audio ref={audioRef} preload="none" />
 
-      {/* Main Content */}
-      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-6 pt-10">
-        <div className="mb-8">
-          <p className="text-xs font-medium uppercase tracking-[0.2em] text-zinc-400">
-            Live radio
-          </p>
-        </div>
-
-        <div className="mx-auto w-full max-w-sm shrink-0">
-          <div className="flex aspect-square min-h-0 w-full items-center justify-center overflow-hidden rounded-3xl bg-zinc-800 p-8 shadow-2xl ring-1 ring-white/5">
-            <svg
-              viewBox="0 0 240 240"
-              preserveAspectRatio="xMidYMid meet"
-              className="h-full w-full"
-              fill="none"
-            >
-              <rect
-                x="12"
-                y="12"
-                width="216"
-                height="216"
-                rx="28"
-                fill={
-                  process.env.NEXT_PUBLIC_CHANNEL_COLOR
-                }
-              />
-
-              <g
-                stroke="#e4e4e7"
-                strokeWidth="8"
-                strokeLinecap="round"
-              >
-                <path d="M44 140V100" />
-                <path d="M64 160V80" />
-                <path d="M84 176V64" />
-                <path d="M104 150V90" />
-                <path d="M124 188V52" />
-                <path d="M144 150V90" />
-                <path d="M164 176V64" />
-                <path d="M184 160V80" />
-                <path d="M204 140V100" />
-              </g>
-            </svg>
+      {/* Scroll Container */}
+      <div
+        className="
+          h-full
+          overflow-y-auto
+          overscroll-y-contain
+          scroll-smooth
+          [-webkit-overflow-scrolling:touch]
+        "
+      >
+        <div className="mx-auto flex min-h-full w-full max-w-md flex-col px-6 pt-10 pb-40">
+          <div className="mb-8">
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-zinc-400">
+              Live radio
+            </p>
           </div>
-        </div>
 
-        <div className="mt-8 space-y-1">
-          <h1 className="text-3xl font-semibold tracking-tight">
-            {process.env.NEXT_PUBLIC_NAME}
-          </h1>
+          <div className="mx-auto w-full max-w-sm shrink-0">
+            <div className="flex aspect-square min-h-0 w-full items-center justify-center overflow-hidden rounded-3xl bg-zinc-800 p-8 shadow-2xl ring-1 ring-white/5">
+              <svg
+                viewBox="0 0 240 240"
+                preserveAspectRatio="xMidYMid meet"
+                className="h-full w-full"
+                fill="none"
+              >
+                <rect
+                  x="12"
+                  y="12"
+                  width="216"
+                  height="216"
+                  rx="28"
+                  fill={
+                    process.env.NEXT_PUBLIC_CHANNEL_COLOR
+                  }
+                />
 
-          <p className="text-sm text-zinc-400">
-            {process.env.NEXT_PUBLIC_DESC}
-          </p>
+                <g
+                  stroke="#e4e4e7"
+                  strokeWidth="8"
+                  strokeLinecap="round"
+                >
+                  <path d="M44 140V100" />
+                  <path d="M64 160V80" />
+                  <path d="M84 176V64" />
+                  <path d="M104 150V90" />
+                  <path d="M124 188V52" />
+                  <path d="M144 150V90" />
+                  <path d="M164 176V64" />
+                  <path d="M184 160V80" />
+                  <path d="M204 140V100" />
+                </g>
+              </svg>
+            </div>
+          </div>
+
+          <div className="mt-8 space-y-1">
+            <h1 className="text-3xl font-semibold tracking-tight">
+              {process.env.NEXT_PUBLIC_NAME}
+            </h1>
+
+            <p className="text-sm text-zinc-400">
+              {process.env.NEXT_PUBLIC_DESC}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -906,12 +938,17 @@ export default function Page() {
 
       {/* Fullscreen Player */}
       <div
-        className={`fixed inset-0 z-50 flex flex-col bg-black text-white transition-all duration-300 ease-out ${
+        className={`fixed inset-0 z-50 flex flex-col bg-black text-white will-change-transform transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
           controlsOpen
             ? "translate-y-0 opacity-100"
             : "pointer-events-none translate-y-full opacity-100"
         }`}
       >
+        {/* DRAG HANDLE */}
+        <div className="flex justify-center pt-2">
+          <div className="h-1.5 w-12 rounded-full bg-white/20" />
+        </div>
+        
         {/* FULLSCREEN TOP BAR */}
         <div className="absolute left-6 top-6 z-10 flex items-center gap-3">
           {/* QUALITY GEAR */}
