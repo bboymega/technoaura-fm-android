@@ -20,11 +20,15 @@ type StreamQuality = {
 
 import { MediaSession } from '@capgo/capacitor-media-session';
 import { Preferences } from "@capacitor/preferences";
+import { App } from "@capacitor/app";
 
 export default function Page() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const fsQualityRef = useRef<HTMLDivElement | null>(null);
   const sidebarQualityRef = useRef<HTMLDivElement | null>(null);
+  const externalPauseRef = useRef(false);
+  const userPausedRef = useRef(false);
+  const streamFailedRef = useRef(false);
   const QUALITY_STORAGE_KEY = "selected-stream-quality";
 
   // 0 = paused
@@ -148,6 +152,13 @@ export default function Page() {
 
     if (!audio) return;
 
+    if (
+      externalPauseRef.current ||
+      userPausedRef.current
+    ) {
+      return;
+    }
+
     try {
       hardResetAudio();
 
@@ -177,6 +188,12 @@ export default function Page() {
     const audio = audioRef.current;
 
     if (!audio) return;
+    if (
+      externalPauseRef.current ||
+      userPausedRef.current
+    ) {
+      return;
+    }
 
     const controller = new AbortController();
 
@@ -260,40 +277,48 @@ export default function Page() {
     if (!audio) return;
 
     const handleBrowserPause = async () => {
-      // Ignore intentional pauses
       if (
-        recoveringRef.current ||
-        manualStopRef.current
+        manualStopRef.current ||
+        recoveringRef.current
       ) {
         return;
       }
 
-      // Unexpected pause
-      if (playingRef.current !== 0) {
-        recoveringRef.current = true;
+      // Another app took audio focus
+      if (playingRef.current === 2) {
+        externalPauseRef.current = true;
 
-        setPlaying(1);
+        stopHealthCheck();
 
-        startHealthCheck(2000);
+        recoveringRef.current = false;
+
+        setPlaying(0);
+
+        await MediaSession.setPlaybackState({
+          playbackState: "paused",
+        });
       }
     };
 
-    const handleBrowserPlay = () => {
-      // Browser auto resumed
-      if (playingRef.current === 0) {
-        void togglePlayback();
+    const handleAudioError = async () => {
+      if (
+        recoveringRef.current ||
+        userPausedRef.current ||
+        externalPauseRef.current
+      ) {
+        return;
       }
-    };
 
-    const handleAudioError = () => {
-      if (!recoveringRef.current) {
-        void healthCheck();
-      }
+      streamFailedRef.current = true;
+
+      recoveringRef.current = true;
+
+      setPlaying(1);
+
+      startHealthCheck(2000);
     };
 
     audio.addEventListener("pause", handleBrowserPause);
-
-    audio.addEventListener("play", handleBrowserPlay);
 
     audio.addEventListener("error", handleAudioError);
 
@@ -304,11 +329,6 @@ export default function Page() {
       );
 
       audio.removeEventListener(
-        "play",
-        handleBrowserPlay,
-      );
-
-      audio.removeEventListener(
         "error",
         handleAudioError,
       );
@@ -316,6 +336,57 @@ export default function Page() {
       stopHealthCheck();
     };
   }, []);
+
+  useEffect(() => {
+    const setupBackButton = async () => {
+      const listener = await App.addListener(
+        "backButton",
+        ({ canGoBack }) => {
+          // CLOSE FULLSCREEN QUALITY MENU FIRST
+          if (fsQualityOpen) {
+            setFsQualityOpen(false);
+            return;
+          }
+
+          // CLOSE SIDEBAR QUALITY MENU
+          if (qualityMenuOpen) {
+            setQualityMenuOpen(false);
+            return;
+          }
+
+          // CLOSE FULLSCREEN PLAYER
+          if (controlsOpen) {
+            setControlsOpen(false);
+            return;
+          }
+
+          // OTHERWISE:
+          // let Android behave normally
+          if (canGoBack) {
+            window.history.back();
+          } else {
+            App.minimizeApp();
+          }
+        },
+      );
+
+      return listener;
+    };
+
+    let cleanup:
+      | {
+          remove: () => Promise<void>;
+        }
+      | undefined;
+
+    void setupBackButton().then((l) => {
+      cleanup = l;
+    });
+
+    return () => {
+      void cleanup?.remove();
+    };
+  }, [fsQualityOpen, qualityMenuOpen, controlsOpen]);
 
   useEffect(() => {
     if (!fsQualityOpen) return;
@@ -389,6 +460,9 @@ export default function Page() {
           const audio = audioRef.current;
 
           if (!audio || !audio.paused) return;
+          userPausedRef.current = false;
+          externalPauseRef.current = false;
+          streamFailedRef.current = false;
 
           try {
             setPlaying(1);
@@ -431,6 +505,9 @@ export default function Page() {
           const audio = audioRef.current;
 
           if (!audio) return;
+          userPausedRef.current = true;
+          externalPauseRef.current = false;
+          streamFailedRef.current = false;
 
           manualStopRef.current = true;
 
@@ -465,6 +542,9 @@ export default function Page() {
     // PLAY
     if (audio.paused) {
       try {
+        userPausedRef.current = false;
+        externalPauseRef.current = false;
+        streamFailedRef.current = false;
         setPlaying(1);
 
         await MediaSession.setPlaybackState({
@@ -503,6 +583,9 @@ export default function Page() {
 
     // STOP
     else {
+      userPausedRef.current = true;
+      externalPauseRef.current = false;
+      streamFailedRef.current = false;
       manualStopRef.current = true;
 
       stopHealthCheck();
