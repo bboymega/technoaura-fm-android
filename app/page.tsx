@@ -823,7 +823,10 @@ export default function Page() {
           </div>
 
           {/* QUALITY BUTTON */}
-          <div className="relative shrink-0">
+          <div
+            ref={sidebarQualityRef}
+            className="relative shrink-0"
+          >
             <button
               type="button"
               onClick={() =>
@@ -843,7 +846,6 @@ export default function Page() {
 
             {/* QUALITY MENU */}
             <div
-              ref={sidebarQualityRef}
               className={`absolute bottom-14 right-0 w-64 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 shadow-2xl transition-all duration-200 ${
                 qualityMenuOpen
                   ? "pointer-events-auto translate-y-0 opacity-100"
@@ -952,7 +954,10 @@ export default function Page() {
         {/* FULLSCREEN TOP BAR */}
         <div className="absolute left-6 top-6 z-10 flex items-center gap-3">
           {/* QUALITY GEAR */}
-          <div className="relative">
+          <div
+            ref={fsQualityRef}
+            className="relative"
+          >
             <button
               type="button"
               onClick={() => setFsQualityOpen((v) => !v)}
@@ -964,7 +969,6 @@ export default function Page() {
 
             {/* DROPDOWN */}
             <div
-              ref={fsQualityRef}
               className={`absolute left-0 top-12 w-64 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 shadow-2xl transition-all duration-200 ${
                 fsQualityOpen
                   ? "pointer-events-auto translate-y-0 opacity-100"
