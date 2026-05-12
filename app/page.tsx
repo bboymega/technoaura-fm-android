@@ -775,7 +775,6 @@ export default function Page() {
   const changeQuality = async (
     quality: StreamQuality,
   ) => {
-
     if (quality.url === selectedQuality.url) {
       setQualityMenuOpen(false);
       return;
@@ -783,8 +782,12 @@ export default function Page() {
 
     const audio = audioRef.current;
 
+    // TRUE only if stream was actively playing
     const wasPlaying =
-      playingRef.current !== 0;
+      !!audio &&
+      !audio.paused &&
+      !audio.ended &&
+      playingRef.current != 0;
 
     const session =
       beginNewPlaybackSession();
@@ -792,25 +795,20 @@ export default function Page() {
     stopHealthCheck();
 
     recoveringRef.current = false;
-
     retryCountRef.current = 0;
-
     externalPauseRef.current = false;
-
     streamFailedRef.current = false;
 
-    userPausedRef.current = false;
+    // Preserve user pause intent
+    userPausedRef.current = !wasPlaying;
 
     manualStopRef.current = true;
 
-    // hard destroy old stream
+    // destroy old stream
     if (audio) {
       audio.pause();
-
       audio.removeAttribute("src");
-
       audio.src = "";
-
       audio.load();
     }
 
@@ -825,8 +823,15 @@ export default function Page() {
 
     setQualityMenuOpen(false);
 
+    // YouTube-style behavior:
+    // stay paused if previously paused
     if (!wasPlaying || !audio) {
       setPlaying(0);
+
+      await MediaSession.setPlaybackState({
+        playbackState: "paused",
+      });
+
       return;
     }
 
@@ -847,12 +852,17 @@ export default function Page() {
 
       await audio.play();
 
-      // another quality switch happened meanwhile
       if (requestId !== playbackRequestIdRef.current) {
         audio.pause();
 
         hardResetAudio();
 
+        return;
+      }
+
+      if (
+        !isPlaybackSessionActive(session)
+      ) {
         return;
       }
 
@@ -867,9 +877,8 @@ export default function Page() {
       recoveringRef.current = false;
 
       startHealthCheck(2500);
-    } catch (err) {
 
-      // ignore stale failures
+    } catch (err) {
       if (
         !isPlaybackSessionActive(session)
       ) {
