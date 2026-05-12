@@ -113,6 +113,8 @@ export default function Page() {
 
   const pauseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const playbackRequestIdRef = useRef(0);
+
   const playbackSessionRef = useRef(0);
 
   const stopHealthCheck = () => {
@@ -181,6 +183,8 @@ export default function Page() {
     }
 
     try {
+      const requestId = ++playbackRequestIdRef.current;
+
       hardResetAudio();
 
       audio.src = streamUrlRef.current;
@@ -188,6 +192,14 @@ export default function Page() {
       audio.load();
 
       await audio.play();
+
+      if (requestId !== playbackRequestIdRef.current) {
+        audio.pause();
+
+        hardResetAudio();
+
+        return;
+      }
 
       if (
         !isPlaybackSessionActive(session)
@@ -591,6 +603,8 @@ export default function Page() {
 
             const session = beginNewPlaybackSession();
 
+            const requestId = ++playbackRequestIdRef.current;
+
             setPlaying(1);
 
             hardResetAudio();
@@ -600,6 +614,14 @@ export default function Page() {
             audio.load();
 
             await audio.play();
+
+            if (requestId !== playbackRequestIdRef.current) {
+              audio.pause();
+
+              hardResetAudio();
+
+              return;
+            }
 
             if (
               !isPlaybackSessionActive(session)
@@ -678,6 +700,7 @@ export default function Page() {
         userPausedRef.current = false;
         externalPauseRef.current = false;
         streamFailedRef.current = false;
+        const requestId = ++playbackRequestIdRef.current;
         setPlaying(1);
 
         hardResetAudio();
@@ -687,6 +710,14 @@ export default function Page() {
         audio.load();
 
         await audio.play();
+
+        if (requestId !== playbackRequestIdRef.current) {
+          audio.pause();
+
+          hardResetAudio();
+
+          return;
+        }
 
         if (
           !isPlaybackSessionActive(session)
@@ -800,7 +831,15 @@ export default function Page() {
     }
 
     try {
+      const requestId = ++playbackRequestIdRef.current;
+
       setPlaying(1);
+
+      manualStopRef.current = true;
+
+      hardResetAudio();
+
+      manualStopRef.current = false;
 
       audio.src = quality.url;
 
@@ -808,10 +847,12 @@ export default function Page() {
 
       await audio.play();
 
-      // stale playback guard
-      if (
-        !isPlaybackSessionActive(session)
-      ) {
+      // another quality switch happened meanwhile
+      if (requestId !== playbackRequestIdRef.current) {
+        audio.pause();
+
+        hardResetAudio();
+
         return;
       }
 
@@ -819,14 +860,13 @@ export default function Page() {
         playbackState: "playing",
       });
 
+      setPlaying(2);
+
       retryCountRef.current = 0;
 
       recoveringRef.current = false;
 
-      setPlaying(2);
-
       startHealthCheck(2500);
-
     } catch (err) {
 
       // ignore stale failures
