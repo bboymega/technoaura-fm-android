@@ -866,16 +866,16 @@ export default function Page() {
         return;
       }
 
-      await MediaSession.setPlaybackState({
-        playbackState: "playing",
-      });
-
-      setPlaying(2);
-
       retryCountRef.current = 0;
 
       recoveringRef.current = false;
 
+      setPlaying(2);
+
+      await MediaSession.setPlaybackState({
+        playbackState: "playing",
+      });
+      
       startHealthCheck(2500);
 
     } catch (err) {
