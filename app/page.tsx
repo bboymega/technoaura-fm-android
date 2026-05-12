@@ -113,6 +113,8 @@ export default function Page() {
 
   const pauseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const playbackSessionRef = useRef(0);
+
   const stopHealthCheck = () => {
     if (healthIntervalRef.current !== null) {
       clearInterval(healthIntervalRef.current);
@@ -149,10 +151,27 @@ export default function Page() {
     audio.load();
   };
 
+  const beginNewPlaybackSession = () => {
+    playbackSessionRef.current += 1;
+
+    return playbackSessionRef.current;
+  };
+
+  const isPlaybackSessionActive = (
+    session: number,
+  ) => {
+    return (
+      playbackSessionRef.current === session
+    );
+  };
+
   const reconnectStream = async () => {
     const audio = audioRef.current;
 
     if (!audio) return;
+
+    const session =
+      playbackSessionRef.current;
 
     if (
       externalPauseRef.current ||
@@ -170,6 +189,12 @@ export default function Page() {
 
       await audio.play();
 
+      if (
+        !isPlaybackSessionActive(session)
+      ) {
+        return;
+      }
+
       await MediaSession.setPlaybackState({
         playbackState: "playing",
       });
@@ -181,8 +206,19 @@ export default function Page() {
       setPlaying(2);
 
       startHealthCheck(2500);
+
     } catch (err) {
-      console.error("Reconnect failed", err);
+
+      if (
+        !isPlaybackSessionActive(session)
+      ) {
+        return;
+      }
+
+      console.error(
+        "Reconnect failed",
+        err,
+      );
     }
   };
 
@@ -552,6 +588,9 @@ export default function Page() {
           streamFailedRef.current = false;
 
           try {
+
+            const session = beginNewPlaybackSession();
+
             setPlaying(1);
 
             hardResetAudio();
@@ -561,6 +600,12 @@ export default function Page() {
             audio.load();
 
             await audio.play();
+
+            if (
+              !isPlaybackSessionActive(session)
+            ) {
+              return;
+            }
 
             await MediaSession.setPlaybackState({
               playbackState: "playing",
@@ -629,6 +674,7 @@ export default function Page() {
     // PLAY
     if (audio.paused) {
       try {
+        const session = beginNewPlaybackSession();
         userPausedRef.current = false;
         externalPauseRef.current = false;
         streamFailedRef.current = false;
@@ -641,6 +687,12 @@ export default function Page() {
         audio.load();
 
         await audio.play();
+
+        if (
+          !isPlaybackSessionActive(session)
+        ) {
+          return;
+        }
 
         await MediaSession.setPlaybackState({
           playbackState: "playing",
@@ -698,7 +750,40 @@ export default function Page() {
       return;
     }
 
-    const wasPlaying = playing === 2;
+    const audio = audioRef.current;
+
+    const wasPlaying =
+      playingRef.current !== 0;
+
+    const session =
+      beginNewPlaybackSession();
+
+    stopHealthCheck();
+
+    recoveringRef.current = false;
+
+    retryCountRef.current = 0;
+
+    externalPauseRef.current = false;
+
+    streamFailedRef.current = false;
+
+    userPausedRef.current = false;
+
+    manualStopRef.current = true;
+
+    // hard destroy old stream
+    if (audio) {
+      audio.pause();
+
+      audio.removeAttribute("src");
+
+      audio.src = "";
+
+      audio.load();
+    }
+
+    manualStopRef.current = false;
 
     setSelectedQuality(quality);
 
@@ -709,16 +794,13 @@ export default function Page() {
 
     setQualityMenuOpen(false);
 
-    if (!wasPlaying) return;
-
-    const audio = audioRef.current;
-
-    if (!audio) return;
+    if (!wasPlaying || !audio) {
+      setPlaying(0);
+      return;
+    }
 
     try {
       setPlaying(1);
-
-      hardResetAudio();
 
       audio.src = quality.url;
 
@@ -726,27 +808,48 @@ export default function Page() {
 
       await audio.play();
 
+      // stale playback guard
+      if (
+        !isPlaybackSessionActive(session)
+      ) {
+        return;
+      }
+
       await MediaSession.setPlaybackState({
         playbackState: "playing",
       });
-
-      setPlaying(2);
 
       retryCountRef.current = 0;
 
       recoveringRef.current = false;
 
+      setPlaying(2);
+
       startHealthCheck(2500);
+
     } catch (err) {
-      console.error("Quality switch failed", err);
+
+      // ignore stale failures
+      if (
+        !isPlaybackSessionActive(session)
+      ) {
+        return;
+      }
+
+      console.error(
+        "Quality switch failed",
+        err,
+      );
+
+      stopHealthCheck();
+
+      hardResetAudio();
 
       setPlaying(0);
 
       await MediaSession.setPlaybackState({
         playbackState: "paused",
       });
-
-      hardResetAudio();
     }
   };
 
