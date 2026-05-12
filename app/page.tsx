@@ -305,7 +305,20 @@ export default function Page() {
         pauseTimeoutRef.current = null;
       }
 
-      await syncPlayingState();
+      // wait until stream is actually ready
+      if (audio.readyState < 3) {
+        return;
+      }
+
+      externalPauseRef.current = false;
+
+      setPlaying(2);
+
+      await MediaSession.setPlaybackState({
+        playbackState: "playing",
+      });
+
+      startHealthCheck(2500);
     };
 
     const handleAudioPause = async () => {
@@ -366,11 +379,6 @@ export default function Page() {
       handleAudioPlaying,
     );
 
-    audio.addEventListener(
-      "play",
-      handleAudioPlaying,
-    );
-
     audio.addEventListener("ended", handleEnded);
 
     audio.addEventListener("error", handleAudioError);
@@ -387,11 +395,6 @@ export default function Page() {
 
       audio.removeEventListener(
         "playing",
-        handleAudioPlaying,
-      );
-
-      audio.removeEventListener(
-        "play",
         handleAudioPlaying,
       );
 
