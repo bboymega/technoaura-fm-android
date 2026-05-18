@@ -258,8 +258,9 @@ export default function Page() {
         method: "HEAD",
         cache: "no-store",
         signal: controller.signal,
+        keepalive: true,
       });
-
+         
       clearTimeout(timeoutId);
 
       if (!res.ok) {
