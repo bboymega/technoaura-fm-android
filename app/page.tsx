@@ -327,26 +327,6 @@ export default function Page() {
 
     if (!audio) return;
 
-    const syncPlayingState = async () => {
-      if (!audio.paused && !audio.ended) {
-        externalPauseRef.current = false;
-
-        setPlaying(2);
-
-        await MediaSession.setPlaybackState({
-          playbackState: "playing",
-        });
-
-        startHealthCheck(2500);
-      } else {
-        setPlaying(0);
-
-        await MediaSession.setPlaybackState({
-          playbackState: "paused",
-        });
-      }
-    };
-
     const handleAudioPlaying = async () => {
       if (pauseTimeoutRef.current) {
         clearTimeout(pauseTimeoutRef.current);
@@ -1174,137 +1154,118 @@ export default function Page() {
             : "pointer-events-none translate-y-full opacity-100"
         }`}
       >
-        {/* DRAG HANDLE */}
-        <div className="flex justify-center pt-2">
-          <div className="h-1.5 w-12 rounded-full bg-white/20" />
-        </div>
-        
-        {/* FULLSCREEN TOP BAR */}
-        <div className="absolute left-6 top-6 z-10 flex items-center gap-3">
-          {/* QUALITY GEAR */}
-          <div
-            ref={fsQualityRef}
-            className="relative"
-          >
+        {/* Safe Scroll Container */}
+        <div className="relative flex h-full flex-col overflow-y-auto overflow-x-hidden">
+          
+          {/* Drag Handle */}
+          <div className="flex justify-center pt-2 shrink-0">
+            <div className="h-1.5 w-12 rounded-full bg-white/20" />
+          </div>
+
+          {/* Fullscreen Top Bar */}
+          <div className="relative z-[120] flex items-center justify-between px-6 pt-6 shrink-0">
+            {/* Left Controls */}
+            <div className="flex items-center gap-3">
+              {/* Quality Gear */}
+              <div ref={fsQualityRef} className="relative z-[120]">
+                <button
+                  type="button"
+                  onClick={() => setFsQualityOpen((v) => !v)}
+                  className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-white/5 transition hover:bg-white/10"
+                  aria-label="Quality settings"
+                >
+                  <Settings size={18} />
+                </button>
+
+                {/* Dropdown */}
+                <div
+                  className={`absolute left-0 top-12 z-[130] w-64 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 shadow-2xl transition-all duration-200 ${
+                    fsQualityOpen
+                      ? "pointer-events-auto translate-y-0 opacity-100"
+                      : "pointer-events-none translate-y-2 opacity-0"
+                  }`}
+                >
+                  <div className="max-h-[70vh] overflow-y-auto overscroll-contain">
+                    <div className="border-b border-white/5 px-4 py-3">
+                      <p className="text-sm font-medium">Audio quality</p>
+                      <p className="mt-1 text-xs text-zinc-400">
+                        Choose streaming bitrate
+                      </p>
+                    </div>
+
+                    <div className="p-2">
+                      {qualities.map((quality) => {
+                        const active = quality.url === selectedQuality.url;
+                        return (
+                          <button
+                            key={quality.url}
+                            type="button"
+                            onClick={() => {
+                              void changeQuality(quality);
+                              setFsQualityOpen(false);
+                            }}
+                            className="flex w-full cursor-pointer items-center justify-between rounded-xl px-3 py-3 text-left transition hover:bg-white/5"
+                          >
+                            <div>
+                              <p className="text-sm font-medium">{quality.label}</p>
+                              <p className="text-xs text-zinc-400">{quality.description}</p>
+                            </div>
+                            {active && <Check size={18} className="text-green-400" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Close Button */}
             <button
               type="button"
-              onClick={() => setFsQualityOpen((v) => !v)}
-              className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-white/5 transition hover:bg-white/10"
-              aria-label="Quality settings"
+              onClick={() => setControlsOpen(false)}
+              className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-white/5"
+              aria-label="Close"
             >
-              <Settings size={18} />
+              <X size={20} />
             </button>
+          </div>
 
-            {/* DROPDOWN */}
-            <div
-              className={`absolute left-0 top-12 w-64 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 shadow-2xl transition-all duration-200 ${
-                fsQualityOpen
-                  ? "pointer-events-auto translate-y-0 opacity-100"
-                  : "pointer-events-none translate-y-2 opacity-0"
-              }`}
-            >
-              <div className="border-b border-white/5 px-4 py-3">
-                <p className="text-sm font-medium">Audio quality</p>
-                <p className="mt-1 text-xs text-zinc-400">
-                  Choose streaming bitrate
-                </p>
+          {/* Main Content */}
+          <div className="flex flex-1 flex-col items-center justify-center gap-[clamp(1rem,5vw,2.618rem)] px-6 py-8 landscape:flex-row landscape:justify-center landscape:gap-4 landscape:px-4 landscape:max-w-screen overflow-x-hidden text-center">
+            
+            {/* Artwork */}
+            <div className="flex shrink-0 items-center justify-center landscape:w-[42%] landscape:max-w-[42%]">
+              <div className="flex items-center justify-center rounded-3xl bg-zinc-800 shadow-2xl w-40 h-40 p-6 sm:w-56 sm:h-56 md:w-72 md:h-72 landscape:w-full landscape:h-auto">
+                <ChannelArtwork />
               </div>
+            </div>
 
-              <div className="p-2">
-                {qualities.map((quality) => {
-                  const active = quality.url === selectedQuality.url;
+            {/* Info Side */}
+            <div className="flex flex-col items-center text-center shrink-0 landscape:w-[50%] landscape:max-w-[50%] landscape:items-start landscape:text-left">
+              <h2 className="text-3xl font-semibold">{process.env.NEXT_PUBLIC_NAME}</h2>
+              <p className="mt-2 max-w-sm text-sm text-zinc-400">{process.env.NEXT_PUBLIC_DESC}</p>
+              <p className="mt-3 text-xs uppercase tracking-[0.2em] text-zinc-500">
+                {selectedQuality.label} · {selectedQuality.description}
+              </p>
 
-                  return (
-                    <button
-                      key={quality.url}
-                      type="button"
-                      onClick={() => {
-                        void changeQuality(quality);
-                        setFsQualityOpen(false);
-                      }}
-                      className="flex w-full cursor-pointer items-center justify-between rounded-xl px-3 py-3 text-left transition hover:bg-white/5"
-                    >
-                      <div>
-                        <p className="text-sm font-medium">
-                          {quality.label}
-                        </p>
-                        <p className="text-xs text-zinc-400">
-                          {quality.description}
-                        </p>
-                      </div>
-
-                      {active && (
-                        <Check size={18} className="text-green-400" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+              {/* Playback Button */}
+              <button
+                type="button"
+                onClick={() => void togglePlayback()}
+                className="mt-10 flex h-24 w-24 cursor-pointer items-center justify-center rounded-full bg-white text-black transition-transform active:scale-95 disabled:opacity-70"
+                aria-label={playing === 2 ? "Pause" : "Play"}
+                disabled={playing === 1}
+              >
+                {playing === 1 && <Loader2 size={32} className="animate-spin" />}
+                {playing === 2 && <Square size={28} fill="currentColor" />}
+                {playing === 0 && <Play size={30} fill="currentColor" />}
+              </button>
             </div>
           </div>
         </div>
-
-        <div className="flex items-center justify-end px-6 pt-6">
-          <button
-            type="button"
-            onClick={() => setControlsOpen(false)}
-            className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-white/5"
-            aria-label="Close"
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
-          <div className="mb-8 flex h-40 w-40 shrink-0 items-center justify-center rounded-3xl bg-zinc-800 p-6 shadow-2xl">
-            <ChannelArtwork />
-          </div>
-
-          <h2 className="text-3xl font-semibold">
-            {process.env.NEXT_PUBLIC_NAME}
-          </h2>
-
-          <p className="mt-2 max-w-sm text-sm text-zinc-400">
-            {process.env.NEXT_PUBLIC_DESC}
-          </p>
-
-          <p className="mt-3 text-xs uppercase tracking-[0.2em] text-zinc-500">
-            {selectedQuality.label} ·{" "}
-            {selectedQuality.description}
-          </p>
-
-          <button
-            type="button"
-            onClick={() => void togglePlayback()}
-            className="mt-10 flex h-24 w-24 cursor-pointer items-center justify-center rounded-full bg-white text-black transition-transform active:scale-95 disabled:opacity-70"
-            aria-label={
-              playing === 2 ? "Pause" : "Play"
-            }
-            disabled={playing === 1}
-          >
-            {playing === 1 && (
-              <Loader2
-                size={32}
-                className="animate-spin"
-              />
-            )}
-
-            {playing === 2 && (
-              <Square
-                size={28}
-                fill="currentColor"
-              />
-            )}
-
-            {playing === 0 && (
-              <Play
-                size={30}
-                fill="currentColor"
-              />
-            )}
-          </button>
-        </div>
       </div>
+
     </div>
   );
 }
